@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+data/*
+!data/.gitkeep
+web/js/library.js
+*.log
+*.tmp
+.pytest_cache/
+test-results/
+library/
+comics/
