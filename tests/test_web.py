@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 @unittest.skipIf(sync_playwright is None, 'Cần cài Playwright để kiểm thử browser thật')
-class WebTests(unittest.TestCase):
+class BrowserCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         (ROOT / 'test-results').mkdir(exist_ok=True)
@@ -46,6 +46,8 @@ class WebTests(unittest.TestCase):
         self.page.goto(self.url + '#/library')
         self.page.wait_for_selector('.story-card')
 
+
+class WebTests(BrowserCase):
     def test_file_library_pagination_external_cover(self):
         self.assertTrue(self.page.url.startswith('file:///'))
         self.assertEqual(self.page.locator('.story-card').count(), 20)

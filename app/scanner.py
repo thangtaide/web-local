@@ -9,6 +9,7 @@ import stat
 import unicodedata
 
 from app.storage import atomic_write
+from app.image_meta import image_size
 
 IMAGE_EXTENSIONS = frozenset({'.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'})
 
@@ -66,15 +67,15 @@ def scan_library(folder):
         for story_dir in entries(root, True):
             chapters = []
             for chapter_dir in entries(story_dir, True):
-                images = []
+                images, sizes = [], []
                 for image in entries(chapter_dir, False):
                     # Verify readability, without decoding or changing the image.
                     with io_path(image).open('rb') as stream:
-                        stream.read(1)
+                        sizes.append(image_size(stream))
                     images.append(image.as_uri())
                 if images:
                     chapters.append({'id': stable_id(chapter_dir.relative_to(root).as_posix()),
-                                     'name': chapter_dir.name, 'images': images, 'image_count': len(images)})
+                                     'name': chapter_dir.name, 'images': images, 'image_sizes': sizes, 'image_count': len(images)})
                     image_count += len(images)
             if chapters:
                 stories.append({'id': stable_id(story_dir.relative_to(root).as_posix()),

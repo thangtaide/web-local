@@ -21,7 +21,7 @@
     return node;
   }
   const storyRoute = story => '#/story/' + encodeURIComponent(story.id);
-  const readRoute = (story, chapter, resume = false) => '#/read/' + encodeURIComponent(story.id) + '/' + encodeURIComponent(chapter.id) + (resume ? '?resume=1' : '');
+  const readRoute = (story, chapter, resume = false) => '#/read/' + encodeURIComponent(story.id) + '/' + encodeURIComponent(chapter.id) + (resume ? '?resume=1' : '?start=1');
   function cover(story) {
     const frame = el('div', {class: 'cover'});
     const image = el('img', {src: story.cover, alt: 'Bìa ' + story.name, loading: 'lazy', decoding: 'async'});
