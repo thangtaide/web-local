@@ -27,3 +27,11 @@ def get_paths():
         return AppPaths(resources, data, data / "web")
     root = Path(__file__).resolve().parent.parent
     return AppPaths(root, root / "data", root / "web")
+
+
+def prepare_web(paths):
+    """Source resources already live at their permanent file:// location.
+
+    Frozen deployment is added with packaging in phase 6.
+    """
+    paths.web.mkdir(parents=True, exist_ok=True)
