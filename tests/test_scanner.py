@@ -4,7 +4,8 @@ import shutil
 import tempfile
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
+import stat
 from app.scanner import ScanError, scan_library, write_library, natural_key, io_path
 
 
@@ -102,9 +103,27 @@ class ScannerTests(unittest.TestCase):
         self.addCleanup(io_path(path).unlink)
         data = scan_library(self.root)
         self.assertEqual(data['stories'][0]['cover'], path.as_uri())
-        self.assertNotEqual(self.root.drive.casefold(), Path(__file__).resolve().drive.casefold())
+        self.assertNotIn(str(Path(__file__).resolve().parent.parent), str(self.root))
 
-    def test_thousand_images(self):
-        for number in range(1000):
+    def test_ten_thousand_images(self):
+        for number in range(10000):
             self.image(f'Story/Chapter/{number}.png', b'x')
-        self.assertEqual(scan_library(self.root)['stats']['images'], 1000)
+        data = scan_library(self.root)
+        self.assertEqual(data['stats']['images'], 10000)
+        self.assertTrue(data['stories'][0]['chapters'][0]['images'][-1].endswith('/9999.png'))
+
+    def test_symbolic_directory_is_reported_not_silently_skipped(self):
+        entry = MagicMock()
+        entry.stat.return_value.st_mode = stat.S_IFLNK
+        entry.is_symlink.return_value = True
+        entry.path = 'linked-folder'
+        iterator = MagicMock()
+        iterator.__enter__.return_value = [entry]
+        with patch('app.scanner.os.scandir', return_value=iterator):
+            with self.assertRaisesRegex(ScanError, 'junction'):
+                scan_library(self.root)
+
+    def test_extended_root_still_produces_standard_file_uri(self):
+        image = self.image('Story/Chapter/1.jpg')
+        result = scan_library(io_path(self.root))
+        self.assertEqual(result['stories'][0]['cover'], image.as_uri())

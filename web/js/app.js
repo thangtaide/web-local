@@ -6,6 +6,7 @@
   const stories = library && library.schema_version === 1 && Array.isArray(library.stories) ? library.stories : [];
   const root = document.getElementById('app');
   const state = {query: '', page: 1};
+  try { history.scrollRestoration = 'manual'; } catch (_) { /* Progress remains optional. */ }
   document.documentElement.classList.toggle('light', !config.DARK_MODE);
 
   function el(tag, attrs = {}, ...children) {

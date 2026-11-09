@@ -27,6 +27,12 @@ copy /y "%ROOT%\scripts\shortcut_native.ps1" "%ROOT%\dist\MangaReader\shortcut_n
 if errorlevel 1 exit /b 1
 copy /y "%ROOT%\README.md" "%ROOT%\dist\MangaReader\README.md" >nul
 if errorlevel 1 exit /b 1
+if not exist "%ROOT%\dist\MangaReader\docs" mkdir "%ROOT%\dist\MangaReader\docs"
+if errorlevel 1 exit /b 1
+for %%F in (PROJECT_CONTEXT.md AI_HANDOFF.md REQUIREMENTS.md VALIDATION.md) do (
+  copy /y "%ROOT%\docs\%%F" "%ROOT%\dist\MangaReader\docs\%%F" >nul
+  if errorlevel 1 exit /b 1
+)
 echo Đã build: %ROOT%\dist\MangaReader\MangaReader.exe
 echo Giữ nguyên toàn bộ thư mục MangaReader khi sao chép. Build không cài shortcut.
 exit /b 0

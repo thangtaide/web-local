@@ -1,4 +1,5 @@
 import shutil
+import os
 import tempfile
 from pathlib import Path
 import unittest
@@ -19,7 +20,9 @@ class BrowserCase(unittest.TestCase):
     def setUpClass(cls):
         (ROOT / 'test-results').mkdir(exist_ok=True)
         cls.web_temp = tempfile.TemporaryDirectory(dir=ROOT / 'test-results')
+        cls.addClassCleanup(cls.web_temp.cleanup)
         cls.image_temp = tempfile.TemporaryDirectory(prefix='Truyện ngoài project # % & ')
+        cls.addClassCleanup(cls.image_temp.cleanup)
         cls.web = Path(cls.web_temp.name) / 'web'
         shutil.copytree(ROOT / 'web', cls.web, ignore=shutil.ignore_patterns('library.js'))
         cls.library_root = Path(cls.image_temp.name)
@@ -27,21 +30,20 @@ class BrowserCase(unittest.TestCase):
         cls.data = scan_library(cls.library_root)
         write_library(cls.web / 'js/library.js', cls.data)
         cls.playwright = sync_playwright().start()
-        cls.browser = cls.playwright.chromium.launch()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.browser.close()
-        cls.playwright.stop()
-        cls.web_temp.cleanup()
-        cls.image_temp.cleanup()
+        cls.addClassCleanup(cls.playwright.stop)
+        cls.browser = cls.playwright.chromium.launch(channel=os.environ.get('MANGA_BROWSER_CHANNEL') or None)
+        cls.addClassCleanup(cls.browser.close)
 
     def setUp(self):
         self.context = self.browser.new_context(viewport={'width': 1440, 'height': 900})
         self.addCleanup(self.context.close)
         self.page = self.context.new_page()
         self.errors = []
+        self.network = []
         self.page.on('pageerror', lambda error: self.errors.append(str(error)))
+        self.page.on('request', lambda request: self.network.append(request.url) if request.url.startswith(('http:', 'https:')) else None)
+        self.addCleanup(lambda: self.assertEqual(self.errors, [], 'Lỗi JavaScript chưa xử lý'))
+        self.addCleanup(lambda: self.assertEqual(self.network, [], 'Website không được dùng Internet'))
         self.url = (self.web / 'index.html').as_uri()
         self.page.goto(self.url + '#/library')
         self.page.wait_for_selector('.story-card')
@@ -54,7 +56,7 @@ class WebTests(BrowserCase):
         image = self.page.locator('.story-card img').first
         self.page.wait_for_function("document.querySelector('.story-card img').naturalWidth > 0")
         self.assertIn('%23', image.get_attribute('src'))
-        self.assertNotEqual(self.library_root.drive.casefold(), self.web.drive.casefold())
+        self.assertNotIn(str(self.web), str(self.library_root))
         self.page.get_by_role('button', name='Trang sau').click()
         self.assertEqual(self.page.locator('.story-card').count(), 5)
         self.assertTrue(self.page.get_by_role('button', name='Trang sau').is_disabled())
@@ -96,3 +98,16 @@ class WebTests(BrowserCase):
         self.assertEqual(self.errors, [])
         self.page.evaluate('MangaApp.stories.splice(0); MangaApp.route()')
         self.assertTrue(self.page.get_by_text('Thư viện đang trống', exact=True).is_visible())
+
+    def test_alternative_library_config(self):
+        self.context.add_init_script("Object.defineProperty(window,'MANGA_CONFIG',{set(value){Object.assign(value,{STORIES_PER_PAGE:7,LIVE_SEARCH:false,SEARCH_IGNORE_ACCENTS:false,DARK_MODE:false});this.testConfig=value},get(){return this.testConfig}})")
+        self.page.reload()
+        self.assertEqual(self.page.locator('.story-card').count(), 7)
+        self.assertTrue(self.page.locator('html').evaluate("node=>node.classList.contains('light')"))
+        self.page.locator('#search').fill('truyen dac biet')
+        self.assertEqual(self.page.locator('.story-card').count(), 7)
+        self.page.locator('#search').press('Enter')
+        self.assertEqual(self.page.locator('.story-card').count(), 0)
+        self.page.locator('#search').fill('Truyện Đặc Biệt')
+        self.page.locator('#search').press('Enter')
+        self.assertEqual(self.page.locator('.story-card').count(), 1)

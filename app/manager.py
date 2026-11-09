@@ -6,7 +6,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import webbrowser
 
-from app.paths import get_paths
+from app.paths import get_paths, io_path
 from app.settings import load_settings, save_settings, SettingsError
 
 
@@ -22,17 +22,18 @@ def scan_and_publish(folder, paths):
 
 class ScanController:
     """One job at a time. Only poll() may open the browser (on the caller thread)."""
-    def __init__(self, job, index, opener=webbrowser.open):
+    def __init__(self, job, index, opener=webbrowser.open, on_success=None):
         self.job, self.index, self.opener = job, Path(index), opener
         self.results = queue.Queue()
         self.busy = False
+        self.on_success = on_success
 
     def start(self, folder):
         if self.busy:
             return False
         if not folder:
             raise ValueError('Hãy chọn thư mục thư viện trước.')
-        if not Path(folder).is_dir():
+        if not io_path(Path(folder).expanduser().absolute()).is_dir():
             raise ValueError('Thư mục không tồn tại hoặc không thể truy cập. Hãy chọn lại.')
         self.busy = True
         try:
@@ -55,6 +56,8 @@ class ScanController:
         except queue.Empty:
             return None
         try:
+            if success and self.on_success:
+                self.on_success(value)
             if success and not self.opener(self.index.resolve().as_uri() + '#/library'):
                 return False, 'Đã ghi thư viện nhưng không mở được trình duyệt. Hãy mở index.html thủ công.'
             return success, value
@@ -69,7 +72,7 @@ class MangaManager:
         self.root = root
         self.paths = paths or get_paths()
         self.controller = ScanController(job or (lambda folder: scan_and_publish(folder, self.paths)),
-                                         self.paths.web / 'index.html', opener)
+                                         self.paths.web / 'index.html', opener, self._show_stats)
         root.title('Manga Reader')
         root.minsize(640, 240)
         root.geometry('760x280')
@@ -89,7 +92,7 @@ class MangaManager:
         try:
             self.folder.set(load_settings(self.paths.settings))
             if self.folder.get():
-                self.status.set('Sẵn sàng.' if Path(self.folder.get()).is_dir() else 'Thư mục đã lưu không còn tồn tại. Hãy chọn lại.')
+                self.status.set('Sẵn sàng.' if io_path(Path(self.folder.get()).expanduser().absolute()).is_dir() else 'Thư mục đã lưu không còn tồn tại. Hãy chọn lại.')
         except SettingsError as exc:
             self.status.set(str(exc))
         self.path_entry = ttk.Entry(frame, textvariable=self.folder, state='readonly')
@@ -138,6 +141,11 @@ class MangaManager:
         self.choose_button.state(['disabled'])
         self.status.set('Đang quét toàn bộ thư viện… Bạn có thể tiếp tục di chuyển cửa sổ.')
 
+    def _show_stats(self, value):
+        self.stats.set(f"{value['stories']} truyện · {value['chapters']} tập · {value['images']} ảnh")
+        self.status.set('Đã quét và ghi dữ liệu thành công. Đang mở trình duyệt…')
+        self.root.update_idletasks()
+
     def _poll(self):
         result = self.controller.poll()
         if result is not None:
@@ -145,7 +153,6 @@ class MangaManager:
             self.open_button.state(['!disabled'])
             self.choose_button.state(['!disabled'])
             if success:
-                self.stats.set(f"{value['stories']} truyện · {value['chapters']} tập · {value['images']} ảnh")
                 self.status.set('Đã quét và ghi dữ liệu thành công. Đã mở trình duyệt.')
             else:
                 self.status.set('Không hoàn tất. Có thể chọn lại thư mục và thử lại.')

@@ -10,8 +10,10 @@
     storage.setItem(probe, '1'); storage.removeItem(probe);
   } catch (_) { storage = null; }
   function read(key, fallback) {
-    try { return storage ? JSON.parse(storage.getItem(key)) ?? fallback : fallback; }
-    catch (_) { return fallback; }
+    let raw;
+    try { raw = storage ? storage.getItem(key) : null; }
+    catch (_) { storage = null; return fallback; }
+    try { return JSON.parse(raw) ?? fallback; } catch (_) { return fallback; }
   }
   function write(key, value) {
     try {
@@ -110,7 +112,11 @@
   }
   function showStorageNotice() {
     const note = document.querySelector('.storage-notice');
-    if (note) note.hidden = false;
+    if (note && note.hidden) {
+      const position = current && !current.restoring ? anchor() : null;
+      note.hidden = false;
+      if (position) scrollAnchor(position);
+    }
   }
   function leave() {
     save();
@@ -144,7 +150,7 @@
     location.hash = readRoute(current.story, chapter);
   }
   const scrollByPage = direction => window.scrollBy({top: direction * innerHeight * C.SPACE_SCROLL_RATIO, behavior: C.SMOOTH_SCROLL ? 'smooth' : 'instant'});
-  const scrollToEdge = bottom => window.scrollTo({top: bottom ? document.documentElement.scrollHeight : 0, behavior: C.SMOOTH_SCROLL ? 'smooth' : 'instant'});
+  const scrollToEdge = bottom => window.scrollTo({top: bottom ? document.documentElement.scrollHeight : 0, behavior: 'instant'});
 
   function waitImage(image) {
     if (image.complete && image.getAttribute('src')) return Promise.resolve();
@@ -166,14 +172,14 @@
         const image = unknown[cursor++].querySelector('img'); image.loading = 'eager'; await waitImage(image);
       }
     }));
-    if (token !== generation) return;
+    if (token !== generation || !view.restoring) return;
     const target = view.pages[page].querySelector('img');
     target.loading = 'eager';
     // Move to the reserved target area so native lazy loading has a useful viewport.
     scrollAnchor({page, ratio: saved?.ratio || 0});
     await waitImage(target);
     await new Promise(requestAnimationFrame);
-    if (token !== generation) return;
+    if (token !== generation || !view.restoring) return;
     scrollAnchor({page, ratio: saved?.ratio || 0});
     view.restoring = false;
     view.stage.setAttribute('aria-busy', 'false');
@@ -205,7 +211,9 @@
       const image = el('img', {class: 'reader-image', alt: 'Trang ' + (index + 1), loading: C.LAZY_LOAD_IMAGES ? 'lazy' : 'eager', decoding: 'async'});
       const loaded = () => {
         if (token !== generation || !image.naturalWidth) return;
-        const position = current.restoring ? null : anchor();
+        const rect = page.getBoundingClientRect();
+        const changed = Math.abs(rect.height - rect.width * image.naturalHeight / image.naturalWidth) > 1;
+        const position = current.restoring || !changed ? null : anchor();
         page.style.aspectRatio = image.naturalWidth + '/' + image.naturalHeight;
         page.dataset.known = 'true';
         if (position) scrollAnchor(position);
@@ -251,8 +259,17 @@
   });
   window.addEventListener('pagehide', save);
   document.addEventListener('visibilitychange', () => {if (document.hidden) save();});
+  function cancelRestore() {
+    if (current?.restoring) {
+      current.restoring = false;
+      current.stage.setAttribute('aria-busy', 'false');
+      save();
+    }
+  }
+  window.addEventListener('wheel', cancelRestore, {passive: true});
+  window.addEventListener('touchstart', cancelRestore, {passive: true});
   window.addEventListener('keydown', event => {
-    if (!current || event.ctrlKey || event.altKey || event.metaKey || event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])')) return;
+    if (!current || event.ctrlKey || event.altKey || event.metaKey || (event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])'))) return;
     const key = event.key.toLowerCase();
     let action;
     if (key === ' ') action = () => scrollByPage(event.shiftKey ? -1 : 1);
@@ -264,7 +281,7 @@
     else if (key === '+' || key === '=' || event.code === 'NumpadAdd') action = () => changeWidth(1);
     else if (key === '-' || event.code === 'NumpadSubtract') action = () => changeWidth(-1);
     else if (key === 'escape') action = () => {save(); location.hash = storyRoute(current.story);};
-    if (action) {event.preventDefault(); action();}
+    if (action) {event.preventDefault(); cancelRestore(); action();}
   });
   window.MangaReader = {render, leave, continueRoute, renderRecent};
 })();

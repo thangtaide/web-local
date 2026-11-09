@@ -9,6 +9,17 @@ from app.storage import atomic_write
 WEB_FILES = ('index.html', 'css/style.css', 'js/config.js', 'js/app.js', 'js/reader.js')
 
 
+def io_path(path):
+    """Extended Windows paths for IO only; never use the prefix in a public URI."""
+    value = str(path)
+    if os.name == 'nt' and not value.startswith('\\\\?\\'):
+        if value.startswith('\\\\'):
+            return Path('\\\\?\\UNC\\' + value[2:])
+        if Path(value).is_absolute():
+            return Path('\\\\?\\' + value)
+    return Path(value)
+
+
 @dataclass(frozen=True)
 class AppPaths:
     resources: Path

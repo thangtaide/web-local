@@ -94,7 +94,7 @@ python -m pip install pyinstaller
 .\scripts\build_exe.bat
 ```
 
-Cần Python 3.10+/Tkinter. PyInstaller chỉ dùng build; script xác định root của chính nó, chạy mọi cwd. Kết quả `dist\MangaReader\MangaReader.exe`, `_internal`, README và script shortcut. Build onedir, không console, có icon sách, không đóng gói library.js/settings/ảnh cá nhân. Đóng EXE trước build lại; build thay sản phẩm cũ. dist/build không commit. Tái tạo icon: `python scripts/create_icon.py` (stdlib).
+Cần Python 3.10+/Tkinter. PyInstaller chỉ dùng build; script xác định root của chính nó, chạy mọi cwd. Kết quả `dist\MangaReader\MangaReader.exe`, `_internal`, README, docs và script shortcut. Build onedir, không console, có icon sách, không đóng gói library.js/settings/ảnh cá nhân. Đóng EXE trước build lại; build thay sản phẩm cũ. dist/build không commit. Tái tạo icon: `python scripts/create_icon.py` (stdlib).
 
 Thiết kế tham chiếu [runtime PyInstaller](https://pyinstaller.org/en/stable/runtime-information.html) và [spec files](https://pyinstaller.org/en/stable/spec-files.html).
 
@@ -106,7 +106,9 @@ python -m playwright install chromium
 python -m unittest discover -v
 ```
 
-Thiếu Playwright thì browser test báo skip, không được hiểu là đã kiểm chứng web. Test chạy **file:// thật**, không server, fixture tự sinh. Tk tests cần Tk khả dụng. Test shortcut chỉ tạo .lnk dưới APPDATA tạm, không chạm Start Menu thật.
+Thiếu Playwright thì browser test báo skip, không được hiểu là đã kiểm chứng web. Test chạy **file:// thật**, không server, fixture tự sinh. Tk tests cần Tk khả dụng. Test shortcut chỉ tạo .lnk dưới APPDATA tạm, không chạm Start Menu thật. Bộ hiện có 50 test thường (29 Python/Tk và 21 browser); xem [biên bản kiểm thử](docs/VALIDATION.md).
+
+Muốn chạy 21 test browser với Chrome đã cài trên máy, đặt biến môi trường `MANGA_BROWSER_CHANNEL=chrome`; với Edge là `msedge`. Mặc định dùng Chromium do Playwright cung cấp. Chrome đã đạt; Edge trên máy QA thoát trước khi kết nối DevTools, nên chưa xác minh được Edge.
 
 Sau build, chạy riêng:
 
@@ -120,7 +122,7 @@ Nghiệm thu thủ công còn lại: EXE → chọn folder native → mở web �
 
 ## Giới hạn và xử lý lỗi
 
-- `file://`/localStorage khác nhau theo browser/profile/riêng tư; không bảo đảm lưu trên mọi browser. Không tự đồng bộ/backup giữa máy. Chromium đã kiểm thử, browser khác sẽ ghi rõ khi được xác minh.
+- `file://`/localStorage khác nhau theo browser/profile/riêng tư; không bảo đảm lưu trên mọi browser. Không tự đồng bộ/backup giữa máy. Chromium và Chrome đã kiểm thử; Edge chưa xác minh vì không khởi động được trong tự động hóa.
 - Chưa hỗ trợ ZIP/RAR/CBZ/PDF hoặc tải truyện.
 - Ảnh lỗi: kiểm tra file gốc và browser hỗ trợ AVIF/WebP, rồi bấm **Mở Web Đọc Truyện** để quét lại. Không sửa ảnh gốc, không thêm server.
 - Folder/file không đọc được khiến toàn lượt quét thất bại và giữ library cũ; sửa quyền/đóng chương trình khóa file rồi thử lại.

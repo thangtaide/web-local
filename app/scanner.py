@@ -10,23 +10,13 @@ import unicodedata
 
 from app.storage import atomic_write
 from app.image_meta import image_size
+from app.paths import io_path
 
 IMAGE_EXTENSIONS = frozenset({'.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'})
 
 
 class ScanError(Exception):
     """An incomplete library must never replace a previously valid library."""
-
-
-def io_path(path):
-    """Extended Windows paths for IO only; public URIs keep standard drive/UNC syntax."""
-    value = str(path)
-    if os.name == 'nt' and not value.startswith('\\\\?\\'):
-        if value.startswith('\\\\'):
-            return Path('\\\\?\\UNC\\' + value[2:])
-        if Path(value).is_absolute():
-            return Path('\\\\?\\' + value)
-    return Path(value)
 
 
 def natural_key(value):
@@ -47,18 +37,23 @@ def entries(path, directories):
         for entry in iterator:
             # stat errors (including a disappearing entry) propagate instead of silently skipping.
             info = entry.stat(follow_symlinks=False)
+            if entry.is_symlink() or getattr(info, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+                raise ScanError(f'Không hỗ trợ liên kết/junction trong thư viện: {entry.path}')
             relevant = stat.S_ISDIR(info.st_mode) if directories else Path(entry.name).suffix.lower() in IMAGE_EXTENSIONS
             if not relevant:
                 continue
-            if entry.is_symlink() or getattr(info, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT:
-                raise ScanError(f'Không hỗ trợ liên kết/junction trong thư viện: {entry.path}')
             if directories or stat.S_ISREG(info.st_mode):
                 result.append(Path(path) / entry.name)
     return sorted(result, key=lambda item: natural_key(item.name))
 
 
 def scan_library(folder):
-    root = Path(folder).expanduser().resolve()
+    value = str(folder)
+    if os.name == 'nt' and value.startswith('\\\\?\\UNC\\'):
+        value = '\\\\' + value[8:]
+    elif os.name == 'nt' and value.startswith('\\\\?\\'):
+        value = value[4:]
+    root = Path(value).expanduser().resolve()
     stories = []
     chapter_count = image_count = 0
     try:

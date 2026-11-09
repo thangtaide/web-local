@@ -43,16 +43,17 @@ class ControllerTests(unittest.TestCase):
             events.append(('open', threading.get_ident()))
             self.assertTrue(url.startswith('file:///'))
             return True
-        controller = ScanController(job, self.root / 'index.html', opener)
+        controller = ScanController(job, self.root / 'index.html', opener, lambda _: events.append(('stats', threading.get_ident())))
         self.assertTrue(controller.start(str(self.root)))
         self.assertFalse(controller.start(str(self.root)))
         self.assertIsNone(controller.poll())
         self.assertEqual(events, [])
         gate.set()
         self.assertTrue(self.wait_result(controller)[0])
-        self.assertEqual([e[0] for e in events], ['write', 'open'])
+        self.assertEqual([e[0] for e in events], ['write', 'stats', 'open'])
         self.assertNotEqual(events[0][1], threading.get_ident())
         self.assertEqual(events[1][1], threading.get_ident())
+        self.assertEqual(events[2][1], threading.get_ident())
         self.assertFalse(controller.busy)
 
     def test_failure_does_not_open_and_can_retry(self):
@@ -119,3 +120,24 @@ class GuiTests(unittest.TestCase):
         self.assertEqual(len(opened), 1)
         self.assertIn('3 ảnh', manager.stats.get())
         self.assertFalse(manager.open_button.instate(['disabled']))
+
+    def test_missing_folder_and_scan_error_unlock_buttons(self):
+        def fail(_):
+            raise PermissionError('Không có quyền đọc')
+        manager = MangaManager(self.root, self.paths, job=fail, opener=lambda _: self.fail('Không được mở web khi lỗi'))
+        self.addCleanup(manager.dispose)
+        with patch('app.manager.messagebox.showerror') as error:
+            manager.open_web()
+            error.assert_called_once()
+            manager.folder.set(str(self.base / 'missing'))
+            manager.open_web()
+            self.assertIn('không tồn tại', manager.status.get())
+            manager.folder.set(str(self.base))
+            manager.open_web()
+            deadline = time.monotonic() + 3
+            while manager.controller.busy and time.monotonic() < deadline:
+                self.root.update(); time.sleep(.005)
+            self.assertFalse(manager.controller.busy)
+            self.assertFalse(manager.open_button.instate(['disabled']))
+            self.assertFalse(manager.choose_button.instate(['disabled']))
+            self.assertIn('Không có quyền đọc', str(error.call_args))
