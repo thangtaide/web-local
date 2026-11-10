@@ -2,6 +2,30 @@ from tests.test_web import BrowserCase
 
 
 class ReaderTests(BrowserCase):
+    def test_amoled_controls_do_not_add_image_decoration_or_change_focus(self):
+        self.open_reader()
+        css = lambda selector, prop: self.page.locator(selector).first.evaluate('(node,prop)=>getComputedStyle(node)[prop]', prop)
+        self.assertEqual(css('body', 'backgroundColor'), 'rgb(9, 9, 11)')
+        for selector in ('.reader-top', '.reader-bottom'):
+            self.assertEqual(css(selector, 'backgroundColor'), 'rgb(16, 16, 20)')
+        for selector in ('.reader-image', '.reader-page'):
+            for prop, expected in [('padding','0px'), ('borderTopWidth','0px'), ('borderRadius','0px'), ('boxShadow','none')]:
+                self.assertEqual(css(selector, prop), expected, selector)
+        self.assertEqual(css('.reader-stage','gap'), '0px')
+        self.page.locator('.reader-right').hover()
+        self.assertEqual(css('.reader-right','backgroundColor'), 'rgb(33, 22, 50)')
+        self.page.locator('.reader-right').focus()
+        self.assertEqual(css('.reader-right','outlineStyle'), 'solid')
+        self.page.keyboard.press('f')
+        self.assertEqual(css('#app','padding'), '0px')
+        self.assertFalse(self.page.locator('.reader-top').is_visible())
+        self.page.keyboard.press('f')
+        self.assertTrue(self.page.locator('.reader-top').is_visible())
+        self.page.keyboard.press('End')
+        self.page.get_by_role('button', name='Đọc tập tiếp theo').hover()
+        self.assertEqual(css('.chapter-end .primary','backgroundColor'), 'rgb(167, 139, 250)')
+        self.assertEqual(css('.chapter-end .primary','color'), 'rgb(9, 9, 11)')
+
     def open_reader(self, story_index=0, chapter_index=0):
         self.page.evaluate('MANGA_CONFIG.SMOOTH_SCROLL = false')
         story = self.data['stories'][story_index]

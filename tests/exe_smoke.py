@@ -6,6 +6,8 @@ No shortcut is installed. Native GUI tests use an isolated LOCALAPPDATA.
 import ctypes
 from ctypes import wintypes
 import os
+import json
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -13,9 +15,11 @@ import time
 import unittest
 from unittest.mock import patch
 from app.manager import MangaManager
-from app.paths import AppPaths
+from app.paths import AppPaths, prepare_web
 from app.settings import save_settings
+from app.scanner import scan_library, write_library
 from tests.web_support import create_library
+from tests.windows_capture import window_pixels
 
 ROOT = Path(__file__).resolve().parent.parent
 EXE = ROOT / 'dist/MangaReader/MangaReader.exe'
@@ -52,6 +56,16 @@ class ExeSmokeTests(unittest.TestCase):
                         time.sleep(.05)
                     self.assertTrue(windows, 'Không tìm thấy cửa sổ Manga Reader trong process EXE')
                     self.assertIsNone(process.poll())
+                    # Verify pixels rendered by the real binary, without foreground automation.
+                    deadline = time.monotonic() + 5
+                    while True:
+                        _, _, pixels = window_pixels(windows[0])
+                        if pixels.count(bytes.fromhex('ef5487')) > 500 or time.monotonic() > deadline:
+                            break
+                        time.sleep(.05)
+                    self.assertGreater(pixels.count(bytes.fromhex('0b0909')), 10000, 'EXE thiếu nền AMOLED')
+                    self.assertGreater(pixels.count(bytes.fromhex('ef5487')), 500, 'EXE thiếu nút tím mới')
+                    self.assertGreater(pixels.count(bytes.fromhex('191414')), 1000, 'EXE thiếu ô đường dẫn tối')
                     user32.PostMessageW(windows[0], 0x0010, 0, 0)  # WM_CLOSE
                     self.assertEqual(process.wait(timeout=10), 0)
                     self.assertEqual(settings.read_bytes(), original)
@@ -67,6 +81,19 @@ class ExeSmokeTests(unittest.TestCase):
             folder = base / 'Truyện đặc biệt # % &'
             create_library(folder, 1)
             paths = AppPaths(EXE.parent / '_internal', base / 'user', base / 'user/web')
+            # Simulate an existing installation at the exact same permanent file URL.
+            legacy = base / 'legacy-bundle'
+            shutil.copytree(paths.resources / 'web', legacy / 'web')
+            legacy_css = legacy / 'web/css/style.css'
+            legacy_css.write_text(legacy_css.read_text(encoding='utf-8') + '\n:root { --bg-primary:#111217; }\n', encoding='utf-8')
+            prepare_web(AppPaths(legacy, paths.data, paths.web))
+            library = scan_library(folder)
+            write_library(paths.library, library)
+            save_settings(paths.settings, folder)
+            settings_before = paths.settings.read_bytes()
+            old_index = (paths.web / 'index.html').read_bytes()
+            keep = paths.web / 'user-file.txt'
+            keep.write_text('Không xóa dữ liệu riêng', encoding='utf-8')
             root = tk.Tk()
             root.withdraw()
             root.update_idletasks()
@@ -75,26 +102,42 @@ class ExeSmokeTests(unittest.TestCase):
             try:
                 with patch('app.manager.filedialog.askdirectory', return_value=str(folder)):
                     manager.choose_folder()
-                manager.open_web()
-                deadline = time.monotonic() + 15
-                while manager.controller.busy and time.monotonic() < deadline:
-                    root.update(); time.sleep(.01)
-                self.assertFalse(manager.controller.busy)
-                self.assertEqual(len(opened), 1)
-                self.assertEqual(paths.settings.read_text(encoding='utf-8').count('library_folder'), 1)
-                self.assertIn('9 ảnh', manager.stats.get())
-                self.assertTrue(opened[0].startswith(paths.web.as_uri()))
                 with sync_playwright() as playwright:
                     browser = playwright.chromium.launch()
                     try:
                         page = browser.new_page()
-                        page.goto(opened[0])
+                        stable_url = (paths.web / 'index.html').as_uri() + '#/library'
+                        page.goto(stable_url)
                         page.wait_for_selector('.story-card')
                         page.wait_for_function("document.querySelector('.story-card img').naturalWidth > 0")
-                        page.locator('.story-card').click()
-                        page.get_by_role('link', name='Đọc tiếp', exact=False).click()
+                        self.assertEqual(page.locator('html').evaluate('node=>getComputedStyle(node).backgroundColor'), 'rgb(17, 18, 23)')
+                        old_css_url = page.locator('link[rel="stylesheet"]').get_attribute('href')
+                        story, chapter = library['stories'][0], library['stories'][0]['chapters'][0]
+                        progress = json.dumps({story['id']: {'chapterId': chapter['id'], 'time': 1, 'chapters': {chapter['id']: {'page': 1, 'ratio': .4, 'time': 1}}}})
+                        page.evaluate('(value)=>{localStorage.setItem("manga-reader.progress.v1",value);localStorage.setItem("manga-reader.width.v1","1000")}', progress)
+                        manager.open_web()
+                        deadline = time.monotonic() + 15
+                        while manager.controller.busy and time.monotonic() < deadline:
+                            root.update(); time.sleep(.01)
+                        self.assertFalse(manager.controller.busy)
+                        self.assertEqual(opened, [stable_url])
+                        self.assertIn('9 ảnh', manager.stats.get())
+                        self.assertEqual(paths.settings.read_bytes(), settings_before)
+                        self.assertEqual(keep.read_text(encoding='utf-8'), 'Không xóa dữ liệu riêng')
+                        self.assertNotEqual((paths.web / 'index.html').read_bytes(), old_index)
+                        page.reload()
+                        page.wait_for_selector('.story-card')
+                        self.assertEqual(page.locator('html').evaluate('node=>getComputedStyle(node).backgroundColor'), 'rgb(9, 9, 11)')
+                        self.assertNotEqual(page.locator('link[rel="stylesheet"]').get_attribute('href'), old_css_url)
+                        self.assertEqual(page.evaluate('localStorage.getItem("manga-reader.progress.v1")'), progress)
+                        self.assertEqual(page.evaluate('localStorage.getItem("manga-reader.width.v1")'), '1000')
+                        page.locator('.recent-continue').click()
                         page.wait_for_selector('.reader-stage[aria-busy="false"]')
                         self.assertEqual(page.locator('.reader-image').count(), 3)
+                        self.assertEqual(page.locator('.width-label').inner_text(), '1000px')
+                        restored = page.evaluate('(id)=>JSON.parse(localStorage.getItem("manga-reader.progress.v1"))[id]', story['id'])
+                        self.assertEqual(restored['chapters'][chapter['id']]['page'], 1)
+                        self.assertAlmostEqual(restored['chapters'][chapter['id']]['ratio'], .4, delta=.01)
                     finally:
                         browser.close()
             finally:

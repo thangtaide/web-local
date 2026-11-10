@@ -2,6 +2,12 @@
 
 Một thư viện truyện của riêng bạn trên Windows 10/11. Manga Manager dùng Tkinter; website HTML/CSS/JavaScript thuần mở trực tiếp bằng `file://`. Không server, localhost, tài khoản, database, CDN hay Internet khi đọc. Ảnh gốc được giữ nguyên.
 
+## Giao diện AMOLED Dark Purple
+
+Manager và website dùng nền gần đen `#09090B`, panel `#141419`, chữ trắng dịu và điểm nhấn tím `#8B5CF6`. Nút chính dùng tông tím điều chỉnh nhẹ `#8754EF` để chữ trắng có tương phản tốt hơn; hover/focus và trạng thái disabled rõ ràng. Manager có trạng thái kèm nội dung và màu, chọn/sao chép đường dẫn Unicode, hỗ trợ Tab; bố cục được đo theo font/DPI. Không thêm thư viện GUI.
+
+Website giữ bố cục, tìm kiếm, phím tắt, tiến độ và chế độ F. `DARK_MODE=false` vẫn bật giao diện sáng cho thư viện; reader giữ nền tối như trước. Nâng cấp EXE cập nhật CSS theo hash tại cùng địa chỉ runtime, không xóa settings, library.js hoặc tiến độ browser. Ảnh so sánh bằng fixture nằm trong `test-results/theme-before/` và `test-results/theme-after/` của workspace kiểm thử, không nằm trong Git/bản phát hành.
+
 ## Dùng bản EXE
 
 Mở `dist\MangaReader\MangaReader.exe`. Bản này có sẵn Python/Tkinter; máy người dùng không cần cài Python. Mang **toàn bộ thư mục MangaReader**, gồm `_internal`, khi sao chép; không chỉ một file EXE. Giữ ứng dụng ở vị trí ổn định trước khi cài shortcut.
@@ -106,9 +112,9 @@ python -m playwright install chromium
 python -m unittest discover -v
 ```
 
-Thiếu Playwright thì browser test báo skip, không được hiểu là đã kiểm chứng web. Test chạy **file:// thật**, không server, fixture tự sinh. Tk tests cần Tk khả dụng. Test shortcut chỉ tạo .lnk dưới APPDATA tạm, không chạm Start Menu thật. Bộ hiện có 50 test thường (29 Python/Tk và 21 browser); xem [biên bản kiểm thử](docs/VALIDATION.md).
+Thiếu Playwright thì browser test báo skip, không được hiểu là đã kiểm chứng web. Test chạy **file:// thật**, không server, fixture tự sinh. Tk tests cần Tk khả dụng. Test shortcut chỉ tạo .lnk dưới APPDATA tạm, không chạm Start Menu thật. Bộ hiện có 55 test thường (32 Python/Tk và 23 browser); xem [biên bản kiểm thử](docs/VALIDATION.md).
 
-Muốn chạy 21 test browser với Chrome đã cài trên máy, đặt biến môi trường `MANGA_BROWSER_CHANNEL=chrome`; với Edge là `msedge`. Mặc định dùng Chromium do Playwright cung cấp. Chrome đã đạt; Edge trên máy QA thoát trước khi kết nối DevTools, nên chưa xác minh được Edge.
+Muốn chạy 23 test browser với Chrome đã cài trên máy, đặt biến môi trường `MANGA_BROWSER_CHANNEL=chrome`, rồi chạy `python -m unittest tests.test_web tests.test_reader -v`; với Edge là `msedge`. Mặc định dùng Chromium do Playwright cung cấp. Chrome đã đạt; Edge trên máy QA trước đây thoát trước khi kết nối DevTools, nên chưa xác minh được Edge.
 
 Sau build, chạy riêng:
 
@@ -116,9 +122,9 @@ Sau build, chạy riêng:
 python -m unittest tests.exe_smoke -v
 ```
 
-Smoke kiểm tra binary tạo cửa sổ/đóng/mở lại với LOCALAPPDATA tạm và PATH không có Python. Smoke thứ hai chạy Manager bằng interpreter với resource đã đóng gói, quét/ghi runtime rồi kiểm tra Chromium tải ảnh file URL; không được diễn giải thành đã bấm folder native/mở default browser trong tiến trình EXE.
+Smoke kiểm tra binary tạo cửa sổ/đóng/mở lại với LOCALAPPDATA tạm và PATH không có Python; `PrintWindow`/GDI đọc pixel thật để xác minh nền AMOLED, ô đường dẫn tối và nút tím trong EXE. Smoke thứ hai dùng Manager bằng interpreter với resource bundle, nâng cấp CSS tại cùng file URL và kiểm tra settings/file riêng/localStorage/đọc tiếp còn nguyên; không được diễn giải thành đã bấm folder native/mở default browser trong tiến trình EXE.
 
-Nghiệm thu thủ công còn lại: EXE → chọn folder native → mở web → xem ảnh → đóng/mở lại và kiểm tra folder; cài shortcut → Windows Search → Enter. Môi trường tự động hóa hiện từ chối SetForegroundWindow, nên chưa xác minh được những thao tác tương tác này. Xem [AI_HANDOFF](docs/AI_HANDOFF.md) cho kết quả chính xác.
+Nghiệm thu thủ công còn lại: EXE → chọn folder native → mở web → xem ảnh → đóng/mở lại và kiểm tra folder; cài shortcut → Windows Search → Enter. Giao diện EXE mới đã được chụp/xác minh bằng PrintWindow không cần foreground. Môi trường vẫn từ chối SetForegroundWindow, nên chưa xác minh các thao tác tương tác này. Title bar native yêu cầu dark mode khi Windows hỗ trợ; native dialog/title bar vẫn tùy phiên bản và thiết lập Windows. Xem [AI_HANDOFF](docs/AI_HANDOFF.md) cho kết quả chính xác.
 
 ## Giới hạn và xử lý lỗi
 

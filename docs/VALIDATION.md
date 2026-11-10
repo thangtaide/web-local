@@ -2,7 +2,35 @@
 
 Ngày 10/11/2026. Máy QA Windows 11 Pro 64-bit, version10.0.26200; Python3.10.9, Tcl/Tk8.6; PyInstaller6.22.3, Playwright1.64.1. Tài nguyên test do dự án sinh, không dùng manga cá nhân. Không có server HTTP và không gửi dữ liệu lên dịch vụ bên ngoài.
 
-## Kết quả cuối đã chạy
+## Nâng cấp AMOLED Dark Purple sau mốc87718df
+
+Working tree trước sửa sạch, HEAD87718df. Baseline chạy lại thực tế: `python -m unittest discover -v` **PASS50/50**, `python -m unittest tests.exe_smoke -v` **PASS2/2**, channel Chrome với `python -m unittest tests.test_web tests.test_reader -v` **PASS21/21**, không skip. Không dùng báo cáo cũ thay cho baseline.
+
+| Kiểm chứng sau nâng cấp | Trạng thái | Kết quả thực chạy |
+|---|---|---|
+| `python -m unittest discover -v` | PASS | 55/55,0 lỗi,0 skip;32 Python/Tk +23 Chromium file:// |
+| `python -m unittest tests.exe_smoke -v` sau build | PASS | 2/2,0 lỗi,0 skip; pixel native EXE và migration runtime tăng cường |
+| `$env:MANGA_BROWSER_CHANNEL='chrome'`; `python -m unittest tests.test_web tests.test_reader -v` | PASS | 23/23,0 lỗi,0 skip; biến môi trường được dọn sau chạy |
+| `scripts/build_exe.bat` | PASS | Build lại Windows x64 onedir đúng dist/MangaReader/MangaReader.exe, bundle app/theme.py tự động qua import; không đổi spec |
+| Manager dark/path/button/hover/focus/disabled/status | PASS | ttk clam màu mới, trạng thái có chữ và dấu chấm, actual worker test disable/reenable và success/error style đúng |
+| Unicode path copy binding và Tab navigation | PASS | readonly path giữ Unicode; copy binding qua clipboard stub trong Tcl, không đổi clipboard hệ thống; Tab entry→choose→open→entry |
+| Tk scaling100/125/150% | PASS | Mô phỏng tỷ lệ font/pixel, kiểm tra minsize/text không cắt và chụp ảnh; không đổi DPI của Windows |
+| Native EXE theme | PASS | PrintWindow/GDI stdlib đọc pixel từ PID EXE thật: nền09090B, entry141419, action8754EF; đóng/mở lại sạch; đã xem screenshot EXE |
+| Website desktop/mobile/hover/focus/light config | PASS | 1440x900 và390x844; palette, input/card/current page, dark reader, light library còn hoạt động |
+| Reader/F/images/progress/navigation | PASS | Bộ cũ chạy lại đạt; thêm ảnh không padding/border/radius/shadow, gap0, F không chừa padding; không sửa JS/schema/storage |
+| Upgrade runtime và storage trong fixture | PASS | Bundle thực→legacy CSS mô phỏng→CSS mới, cùng index file URL; settings/file riêng giữ nguyên; localStorage progress/width không đổi trước mở đọc tiếp; restore đúng ảnh1 zero-based/tỷ lệ0,4/width1000 |
+| Runtime đang có của user | PASS | Đồng bộ chỉ app assets sau build bằng prepare_web; settings.json và library.js so SHA-256 trước/sau giữ nguyên; CSS cũ vẫn tồn tại, CSS được index tham chiếu khớp bundle mới |
+| Shortcut thật hiện hữu | PASS | Đọc IShellLinkW: target/working dir/icon đều đúng EXE cùng vị trí; giữ nguyên shortcut, không đăng ký lại |
+| Compileall/diff/bundle/phạm vi | PASS | Python compileall và diff check đạt; web/docs khớp source; bundle không có settings/library sinh; scanner/settings/paths/HTML/JS/spec/icon/scripts không đổi so với87718df |
+| Native folder picker/default browser/Windows Search tương tác | NOT TESTED | Vẫn thiếu foreground automation; không dùng pixel screenshot để tuyên bố đã click dialog/Search |
+| Windows monitor125/150%/per-monitor DPI thật | NOT TESTED | Chỉ mô phỏng scaling Tk; chưa thay đổi cấu hình màn hình người dùng |
+| Windows10 thật/Edge/Firefox/máy không cài Python | NOT TESTED | Giữ giới hạn mốc trước; không coi PATH không Python là máy sạch |
+
+Không có FAIL còn tồn tại trong những lượt cuối. Có một lượt phát triển báo destructor Tk trên worker, đã sửa giữ AppPaths thay vì view và nhả callback khi dispose. Review cuối có test tái hiện rule nút chung ghi đè hover nền nút tiếp theo cuối tập; sửa specificity primary hover và kiểm thử lại. Không thay đổi thuật toán hoặc schema scanner/reader. Nút action8754EF là điều chỉnh nhỏ so với accent8B5CF6 để white text đạt khoảng4,62:1; hover tím sáng chuyển chữ tối, không white-on-light hoặc chữ tối trên nền tím tối.
+
+Ảnh trước/sau bằng fixture: test-results/theme-before và theme-after, gồm library/detail/reader/focus desktop/mobile, manager100/125/150; native EXE mới tại theme-after/exe-manager.png. Đã xem các ảnh Manager100/150, detail, mobile reader và EXE; screenshot được ignore, không chứa truyện riêng/không commit. Theme native title bar yêu cầu DWM dark hỗ trợ; màu cuối vẫn theo Windows. Không có gradient/glow hoặc reader/focus animation.
+
+## Kết quả lịch sử tại mốc87718df
 
 | Lệnh/thao tác | Kết quả | Phạm vi |
 |---|---|---|

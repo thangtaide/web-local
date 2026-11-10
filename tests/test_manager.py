@@ -104,6 +104,7 @@ class GuiTests(unittest.TestCase):
         manager.folder.set(str(self.base))
         manager.open_web()
         self.assertTrue(manager.open_button.instate(['disabled']))
+        self.assertEqual(manager.status_label.cget('style'), 'Scanning.Manga.TLabel')
         heartbeat = []
         self.root.after(5, lambda: heartbeat.append(True))
         deadline = time.monotonic() + .1
@@ -119,6 +120,7 @@ class GuiTests(unittest.TestCase):
             time.sleep(.005)
         self.assertEqual(len(opened), 1)
         self.assertIn('3 ảnh', manager.stats.get())
+        self.assertEqual(manager.status_label.cget('style'), 'Success.Manga.TLabel')
         self.assertFalse(manager.open_button.instate(['disabled']))
 
     def test_missing_folder_and_scan_error_unlock_buttons(self):
@@ -141,3 +143,4 @@ class GuiTests(unittest.TestCase):
             self.assertFalse(manager.open_button.instate(['disabled']))
             self.assertFalse(manager.choose_button.instate(['disabled']))
             self.assertIn('Không có quyền đọc', str(error.call_args))
+            self.assertEqual(manager.status_label.cget('style'), 'Error.Manga.TLabel')

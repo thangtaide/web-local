@@ -50,6 +50,30 @@ class BrowserCase(unittest.TestCase):
 
 
 class WebTests(BrowserCase):
+    def test_amoled_palette_hover_focus_and_light_config(self):
+        css = lambda selector, prop: self.page.locator(selector).first.evaluate('(node,prop)=>getComputedStyle(node)[prop]', prop)
+        self.assertEqual(css('html', 'backgroundColor'), 'rgb(9, 9, 11)')
+        self.assertEqual(css('.search-bar', 'backgroundColor'), 'rgb(20, 20, 25)')
+        self.assertEqual(css('.cover', 'borderTopColor'), 'rgb(41, 41, 50)')
+        self.page.locator('.story-card').first.hover()
+        self.assertEqual(css('.cover', 'borderTopColor'), 'rgb(167, 139, 250)')
+        self.page.locator('#search').focus()
+        self.assertEqual(css('.search-bar', 'borderTopColor'), 'rgb(167, 139, 250)')
+        self.assertEqual(css('#page-indicator', 'backgroundColor'), 'rgb(33, 22, 50)')
+        self.page.locator('.story-card').first.click()
+        self.page.wait_for_selector('.primary')
+        self.page.mouse.move(0, 0)
+        self.assertEqual(css('.primary', 'backgroundColor'), 'rgb(135, 84, 239)')
+        self.assertEqual(css('.primary', 'color'), 'rgb(255, 255, 255)')
+        self.page.locator('.primary').hover()
+        self.assertEqual(css('.primary', 'color'), 'rgb(9, 9, 11)')
+        self.context.add_init_script('Object.defineProperty(window,"MANGA_CONFIG",{set(value){value.DARK_MODE=false;this.themeConfig=value},get(){return this.themeConfig}})')
+        self.page.reload()
+        self.page.wait_for_selector('.primary')
+        self.page.locator('.primary').hover()
+        self.assertEqual(css('html', 'backgroundColor'), 'rgb(245, 244, 248)')
+        self.assertEqual(css('.primary', 'color'), 'rgb(255, 255, 255)')
+
     def test_file_library_pagination_external_cover(self):
         self.assertTrue(self.page.url.startswith('file:///'))
         self.assertEqual(self.page.locator('.story-card').count(), 20)
