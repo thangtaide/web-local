@@ -47,6 +47,8 @@
   let saveTimer = null;
   let resizeTimer = null;
   let generation = 0;
+  let spaceScroll = null;
+  let spaceFrame = null;
 
   function continueRoute(story) {
     const chapter = story.chapters.find(item => item.id === progress[story.id]?.chapterId) || story.chapters[0];
@@ -119,6 +121,7 @@
     }
   }
   function leave() {
+    stopSpaceScroll();
     save();
     clearTimeout(saveTimer); clearTimeout(resizeTimer);
     generation++;
@@ -149,8 +152,47 @@
     save(); current.navigating = true;
     location.hash = readRoute(current.story, chapter);
   }
-  const scrollByPage = direction => window.scrollBy({top: direction * innerHeight * C.SPACE_SCROLL_RATIO, behavior: C.SMOOTH_SCROLL ? 'smooth' : 'instant'});
-  const scrollToEdge = bottom => window.scrollTo({top: bottom ? document.documentElement.scrollHeight : 0, behavior: 'instant'});
+  function stopSpaceScroll(finishTap = false) {
+    if (spaceFrame !== null) cancelAnimationFrame(spaceFrame);
+    spaceFrame = null;
+    // A short tap keeps its single page animation; a hold stops immediately.
+    if (spaceScroll && (!finishTap || spaceScroll.active)) window.scrollTo({top: window.scrollY, behavior: 'instant'});
+    spaceScroll = null;
+  }
+  function scrollByPage(direction) {
+    stopSpaceScroll();
+    window.scrollBy({top: direction * innerHeight * C.SPACE_SCROLL_RATIO, behavior: C.SMOOTH_SCROLL ? 'smooth' : 'instant'});
+  }
+  function scrollToEdge(bottom) {
+    stopSpaceScroll();
+    window.scrollTo({top: bottom ? document.documentElement.scrollHeight : 0, behavior: 'instant'});
+  }
+  function startSpaceScroll(direction) {
+    scrollByPage(direction);
+    spaceScroll = {direction, started: performance.now(), last: null, active: false, remainder: 0};
+    const frame = now => {
+      if (!spaceScroll || !current || document.hidden) {stopSpaceScroll(); return;}
+      const motion = spaceScroll;
+      if (now - motion.started >= 180) {
+        if (!motion.active) {
+          // Cancel native smooth scrolling once, never restart it on key repeat.
+          window.scrollTo({top: window.scrollY, behavior: 'instant'});
+          motion.active = true;
+          motion.last = now;
+        }
+        const elapsed = Math.min(50, Math.max(0, now - motion.last));
+        // One configured page per half second, independent of OS repeat/FPS.
+        const distance = motion.direction * innerHeight * C.SPACE_SCROLL_RATIO * elapsed / 500;
+        const maximum = Math.max(0, document.documentElement.scrollHeight - innerHeight);
+        const target = Math.max(0, Math.min(maximum, window.scrollY + motion.remainder + distance));
+        window.scrollTo({top: target, behavior: 'instant'});
+        motion.remainder = target - window.scrollY;
+        motion.last = now;
+      }
+      spaceFrame = requestAnimationFrame(frame);
+    };
+    spaceFrame = requestAnimationFrame(frame);
+  }
 
   function waitImage(image) {
     if (image.complete && image.getAttribute('src')) return Promise.resolve();
@@ -257,8 +299,9 @@
     const position = current.position;
     clearTimeout(resizeTimer); resizeTimer = setTimeout(() => {scrollAnchor(position); save();}, 100);
   });
-  window.addEventListener('pagehide', save);
-  document.addEventListener('visibilitychange', () => {if (document.hidden) save();});
+  window.addEventListener('pagehide', () => {stopSpaceScroll(); save();});
+  window.addEventListener('blur', () => {stopSpaceScroll(); save();});
+  document.addEventListener('visibilitychange', () => {if (document.hidden) {stopSpaceScroll(); save();}});
   function cancelRestore() {
     if (current?.restoring) {
       current.restoring = false;
@@ -266,14 +309,26 @@
       save();
     }
   }
-  window.addEventListener('wheel', cancelRestore, {passive: true});
-  window.addEventListener('touchstart', cancelRestore, {passive: true});
+  const editing = target => target instanceof Element && target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])');
+  const manualScroll = () => {stopSpaceScroll(); cancelRestore();};
+  window.addEventListener('wheel', manualScroll, {passive: true});
+  window.addEventListener('touchstart', manualScroll, {passive: true});
+  window.addEventListener('focusin', event => {if (editing(event.target)) stopSpaceScroll();});
+  window.addEventListener('keyup', event => {
+    if (event.key === ' ' || event.code === 'Space') stopSpaceScroll(true);
+    else if (spaceScroll) spaceScroll.direction = event.shiftKey ? -1 : 1;
+  });
   window.addEventListener('keydown', event => {
-    if (!current || event.ctrlKey || event.altKey || event.metaKey || (event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"])'))) return;
+    if (!current || event.ctrlKey || event.altKey || event.metaKey || event.isComposing || editing(event.target)) {stopSpaceScroll(); return;}
     const key = event.key.toLowerCase();
+    if (spaceScroll) spaceScroll.direction = event.shiftKey ? -1 : 1;
+    if (key === ' ' || event.code === 'Space') {
+      event.preventDefault(); cancelRestore();
+      if (!spaceScroll && !event.repeat) startSpaceScroll(event.shiftKey ? -1 : 1);
+      return;
+    }
     let action;
-    if (key === ' ') action = () => scrollByPage(event.shiftKey ? -1 : 1);
-    else if (key === 'arrowleft') action = () => goChapter(-1);
+    if (key === 'arrowleft') action = () => goChapter(-1);
     else if (key === 'arrowright') action = () => goChapter(1);
     else if (key === 'home') action = () => scrollToEdge(false);
     else if (key === 'end') action = () => scrollToEdge(true);
@@ -281,7 +336,7 @@
     else if (key === '+' || key === '=' || event.code === 'NumpadAdd') action = () => changeWidth(1);
     else if (key === '-' || event.code === 'NumpadSubtract') action = () => changeWidth(-1);
     else if (key === 'escape') action = () => {save(); location.hash = storyRoute(current.story);};
-    if (action) {event.preventDefault(); cancelRestore(); action();}
+    if (action) {event.preventDefault(); stopSpaceScroll(); cancelRestore(); action();}
   });
   window.MangaReader = {render, leave, continueRoute, renderRecent};
 })();

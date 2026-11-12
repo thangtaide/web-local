@@ -1,5 +1,35 @@
 # Bối cảnh Manga Reader
 
+## Build đầu ra cố định — 12/11/2026
+
+Người dùng yêu cầu xóa toàn bộ thành phần trong dist/MangaReader và rebuild
+vào đúng thư mục đó. Đã dùng script build chuẩn (PyInstaller làm sạch output
+COLLECT trước khi đóng gói), không tạo dist timestamp mới. Bản đang dùng là
+`dist/MangaReader/MangaReader.exe`; giữ `_internal` cạnh EXE. Không đụng thư
+mục phát hành khác, settings/library hoặc tiến độ người dùng.
+
+## Giữ Space cuộn liên tục — 12/11/2026
+
+Sửa riêng `web/js/reader.js`. Trước đây mỗi keydown lặp lại khởi động một native
+smooth-scroll mới từ scrollY hiện tại, nên giữ Space bị giật/chậm. Nhấn lẻ vẫn
+giữ bước SPACE_SCROLL_RATIO/SMOOTH_SCROLL cũ. Sau 180 ms giữ phím, hủy animation
+native một lần và dùng requestAnimationFrame cuộn theo thời gian: một bước
+SPACE_SCROLL_RATIO viewport mỗi 500 ms. Key repeat chỉ đổi hướng theo Shift,
+không restart animation. Giới hạn delta 50 ms, giữ phần pixel lẻ, đọc scrollY
+thực mỗi frame để không kéo ngược vị trí khi ảnh đổi kích thước.
+
+Keyup dừng hold ngay; tap vẫn hoàn tất animation một trang. Blur/pagehide/tab
+ẩn, wheel/touch, ô nhập nhận focus và phím đọc khác đều hủy hold. Rời route
+hủy RAF trước lưu progress; không auto chuyển tập. Không đổi schema/storage,
+scanner, Tk GUI, CSS, config hoặc dependency runtime.
+
+64 unittest source PASS (32 Python/Tk + 32 Chrome file://). Thêm 9 browser
+regression dùng ảnh trung tính tự sinh; trước sửa 7 FAIL/2 PASS, sau sửa đều
+PASS. EXE mới/tài nguyên đóng gói: 10 PASS. Runtime nâng cấp bằng prepare_web
+giữ nguyên index URL, settings/library hash và các phiên bản cũ. EXE cũ nguyên
+hash, bản mới riêng tại dist/space-scroll-20261112T024813Z/MangaReader/.
+Không thực hiện git add/commit/push hoặc thao tác Git phá hủy.
+
 Ứng dụng cá nhân ngoại tuyến Windows: tìm Manga Reader trong Start Menu/Search, chọn thư viện, quét và đọc trong trình duyệt. [Đặc tả đầy đủ](REQUIREMENTS.md) là nguồn yêu cầu; tài liệu này phản ánh mã đã có. [Biên bản kiểm thử](VALIDATION.md) phân biệt kết quả đã chạy với nghiệm thu tương tác còn chờ.
 
 ## Hệ thống thiết kế AMOLED Dark Purple

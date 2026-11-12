@@ -2,6 +2,21 @@
 
 Một thư viện truyện của riêng bạn trên Windows 10/11. Manga Manager dùng Tkinter; website HTML/CSS/JavaScript thuần mở trực tiếp bằng `file://`. Không server, localhost, tài khoản, database, CDN hay Internet khi đọc. Ảnh gốc được giữ nguyên.
 
+## Sửa giữ Space cuộn chậm — 12/11/2026
+
+Nhấn Space một lần vẫn cuộn 80% màn hình; giữ Space cuộn liên tục, thả để dừng.
+Giữ Shift để cuộn lên, có thể đổi hướng khi vẫn giữ Space. Không phụ thuộc tốc
+độ lặp phím của Windows. Đổi tab, mất focus, focus ô nhập hoặc chuyển tập sẽ
+dừng cuộn, không tự chuyển tập ở cuối ảnh.
+
+Đã cập nhật tài nguyên web runtime hiện có; **F5 tab đang đọc** để nhận sửa đổi.
+Nếu mở Manager, dùng bản EXE mới tại
+`dist/MangaReader/MangaReader.exe`, giữ `_internal` bên cạnh. Theo yêu cầu mới,
+build dùng đường dẫn cố định này và tái tạo toàn bộ nội dung bên trong;
+không tạo thêm thư mục dist riêng theo timestamp.
+64 test source và 10 kiểm tra EXE/tài nguyên đóng gói PASS. Không xóa tiến độ,
+library, settings hoặc phiên bản web cũ. Chi tiết ở [VALIDATION](docs/VALIDATION.md).
+
 ## Giao diện AMOLED Dark Purple
 
 Manager và website dùng nền gần đen `#09090B`, panel `#141419`, chữ trắng dịu và điểm nhấn tím `#8B5CF6`. Nút chính dùng tông tím điều chỉnh nhẹ `#8754EF` để chữ trắng có tương phản tốt hơn; hover/focus và trạng thái disabled rõ ràng. Manager có trạng thái kèm nội dung và màu, chọn/sao chép đường dẫn Unicode, hỗ trợ Tab; bố cục được đo theo font/DPI. Không thêm thư viện GUI.
@@ -77,7 +92,7 @@ Tìm real-time: `truyen dac biet` tìm được **Truyện Đặc Biệt**. Mặ
 
 | Phím | Hành vi |
 |---|---|
-| Space / Shift + Space | Cuộn xuống / lên 80% màn hình |
+| Space / Shift + Space | Nhấn: xuống/lên 80% màn hình; giữ: cuộn liên tục, thả để dừng |
 | ← / → | Tập trước / tập sau |
 | Home / End | Đầu / cuối tập |
 | F | Ẩn/hiện toàn bộ giao diện bao quanh truyện |

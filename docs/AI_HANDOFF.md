@@ -1,5 +1,32 @@
 # Bàn giao AI
 
+## Build tại đường dẫn cố định — 12/11/2026
+
+Theo yêu cầu người dùng, đã tái tạo `dist/MangaReader` bằng
+`scripts/build_exe.bat`. PyInstaller xác nhận xóa thư mục output cũ rồi COLLECT
+lại toàn bộ; không tạo thêm dist theo timestamp. EXE hiện dùng:
+`dist/MangaReader/MangaReader.exe`, chứa sửa Space hold. Không xóa các thư mục
+dist khác hoặc dữ liệu đọc trong AppData. Các đường dẫn build riêng ở phần
+lịch sử dưới đây không phải bản cần mở hiện tại.
+
+## Sửa Space hold — 12/11/2026
+
+Đã sửa `web/js/reader.js` để nhấn lẻ vẫn cuộn một trang, giữ phím cuộn RAF liên
+tục không retarget native smooth theo repeat; nhả phím/mất focus/ẩn tab/đổi
+route/ô nhập/wheel dừng an toàn. Không đổi scanner/manager/theme/schema hoặc
+storage. `tests/test_space_scroll.py` thêm 9 ca browser trung tính thật; trước
+sửa 7 lỗi, sau sửa PASS. Full source 64 PASS, bundle/native EXE 10 PASS.
+
+EXE mới: `dist/space-scroll-20261112T024813Z/MangaReader/MangaReader.exe`.
+Đã đồng bộ asset web runtime hiện có ở cùng URL bằng prepare_web; người dùng
+F5 trang đang mở. Giữ `_internal`; không mở bản EXE cũ để tránh hạ asset.
+Không đổi shortcut hiện có, settings/library/progress hoặc xóa bản cũ.
+Evidence `test-results/space-scroll-20261112T024813Z/`, các log
+`test-results/space-scroll-{before,after,full,bundle,build}.log`.
+Playwright 1.65.1 chỉ ở .venv QA, dùng Chrome cài sẵn, không tải browser.
+Không git add/commit/push/tag/reset/clean. Tài liệu tự commit theo Stage bên
+dưới là lịch sử workflow cũ; lượt sửa này không tạo Stage/commit mới.
+
 Đọc [đặc tả chuẩn hóa đầy đủ](REQUIREMENTS.md); không cần lịch sử hội thoại. Mục tiêu gốc là Manager Windows + website file://, EXE và Start Menu. Yêu cầu bổ sung sau `87718df`: nâng cấp AMOLED Dark Purple đồng nhất cho Tkinter và website, giữ kiến trúc/chức năng/dữ liệu, chạy baseline/hồi quy, build lại, kiểm chứng upgrade runtime và commit riêng. Palette và quyết định đầy đủ ở PROJECT_CONTEXT.
 
 Bất biến: stdlib/Tkinter và JS thuần, không server/Internet/database/npm, không sửa ảnh gốc, không push/đổi remote/reset hard, không dữ liệu cá nhân. Auto commit sau mỗi giai đoạn test đạt và cập nhật cả hai tài liệu trước commit.

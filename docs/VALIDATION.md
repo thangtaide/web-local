@@ -1,5 +1,63 @@
 # Biên bản kiểm thử và giới hạn nghiệm thu
 
+## Rebuild tại dist/MangaReader — 12/11/2026
+
+Theo quyền xóa/build rõ ràng của người dùng, đã chạy script build chuẩn và
+tái tạo toàn bộ `dist/MangaReader`. Log `test-results/rebuild-fixed.log` có
+`Removing dir .../dist/MangaReader` rồi COLLECT hoàn tất, không tạo thư mục
+dist timestamp mới. Lệnh xóa PowerShell thủ công ban đầu bị kiểm tra tự động
+chặn; việc dọn output do bước đóng gói chuẩn của PyInstaller thực hiện.
+
+EXE: `dist/MangaReader/MangaReader.exe`. Đã kiểm tra lại native GUI mở/đóng
+hai lần và 9 ca giữ Space bằng web assets lấy từ chính bundle: **10 PASS,
+0 FAIL, 0 SKIP**, 14,472 giây. JS đóng gói khớp source. Đây là kiểm tra mới;
+64 test source ở phần trước không chạy lại vì không sửa code sản phẩm.
+
+Log `test-results/rebuild-fixed-tests.log`; summary trong thư mục
+`test-results/fixed-build-check-…/`. Không xóa settings/library/progress trong
+AppData, không xóa thư mục dist khác hoặc đăng ký lại shortcut. Giữ `_internal`
+bên cạnh EXE; cập nhật README/docs phát hành theo đường dẫn cố định.
+
+## Sửa Space cuộn chậm — 12/11/2026
+
+Root từ workspace hiện tại; sửa JS reader, thêm test và cập nhật tài liệu.
+Chrome thật mở file:// với ảnh PNG trung tính tự sinh, không dùng truyện cá nhân
+hoặc Internet. Playwright 1.65.1 cài riêng vào .venv QA, Chrome có sẵn.
+
+| Kiểm tra | Kết quả |
+| --- | --- |
+| 9 ca Space mới trên code cũ | 7 FAIL / 2 PASS, tái hiện giữ/repeat/dừng/Shift lỗi |
+| Reader/web/Space sau sửa | 32 PASS / 0 FAIL / 0 SKIP |
+| unittest discover toàn project | 64 PASS / 0 FAIL / 0 SKIP, 40,335 s |
+| Native EXE mới + 9 ca trên web đóng gói | 10 PASS / 0 FAIL / 0 SKIP |
+| Build PyInstaller spec hiện có, thư mục mới riêng | PASS |
+| Runtime user | App assets cập nhật tại URL cũ; settings/library/EXE cũ nguyên SHA-256 |
+
+Ca mới: tap đúng 80%, hold không có repeat vẫn liên tục, repeat không restart
+smooth, thả dừng, Shift đổi hướng khi đang giữ, Home dừng và repeat còn giữ
+không bật lại, blur/tab ẩn không chờ keyup, chuyển route, không auto next,
+input focus không chiếm gõ chữ, SMOOTH_SCROLL=false vẫn giữ bước nhấn lẻ.
+Các test cũ tiếp tục phủ F, +/-/width, Home/End, progress/reload/storage/ảnh
+trễ và navigation. Trước sửa giữ không repeat chỉ đi 720 px; phát 40 repeat
+30 ms chỉ đi 813 px, dưới ngưỡng 1.200 px; sau sửa vượt ngưỡng và dừng trong
+sai số 2 px khi nhả phím. Không dùng số PASS thay cho kiểm tra browser.
+
+Native smoke mở/đóng EXE mới hai lần bằng LOCALAPPDATA tạm, xác minh cửa sổ
+và pixel theme; 9 ca hold dùng đúng JS lấy từ bundle với Chrome. Không tự
+bấm folder native/default browser hoặc đăng ký lại shortcut thật.
+
+EXE: `dist/space-scroll-20261112T024813Z/MangaReader/MangaReader.exe`.
+Giữ `_internal`, README/docs/script đi kèm. Build dùng spec hiện có với
+distpath/workpath riêng, không dùng --clean hoặc thay dist/MangaReader cũ.
+Code deploy runtime dùng prepare_web, chỉ index/versioned app assets; không
+đụng browser profile/localStorage. F5 tab đang mở để nạp JS mới.
+
+Evidence: `test-results/space-scroll-20261112T024813Z/`; logs
+`test-results/space-scroll-before.log`, `space-scroll-after.log`,
+`space-scroll-full.log`, `space-scroll-bundle.log`, `space-scroll-build.log`.
+Git baseline/index/HEAD và bảo toàn dữ liệu nằm trong baseline/audit của evidence.
+Không thực hiện commit/push/tag hoặc Git phá hủy.
+
 Ngày 10/11/2026. Máy QA Windows 11 Pro 64-bit, version10.0.26200; Python3.10.9, Tcl/Tk8.6; PyInstaller6.22.3, Playwright1.64.1. Tài nguyên test do dự án sinh, không dùng manga cá nhân. Không có server HTTP và không gửi dữ liệu lên dịch vụ bên ngoài.
 
 ## Nâng cấp AMOLED Dark Purple sau mốc87718df
